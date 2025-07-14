@@ -33,6 +33,6 @@ func Example() {
 			println(time.Now().Second())
 			time.Sleep(3 * time.Second)
 			sem.Release()
-		}()
+		}() 
 	}
 }
