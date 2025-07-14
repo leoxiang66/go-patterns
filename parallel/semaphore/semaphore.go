@@ -16,7 +16,7 @@ func NewSemaphore(capacity int) *Semaphore {
 	}
 }
 
-func (sem *Semaphore) Accquire() {
+func (sem *Semaphore) Acquire() {
 	sem.container <- struct{}{}
 }
 
@@ -28,7 +28,7 @@ func Example() {
 	sem := NewSemaphore(5)
 
 	for {
-		sem.Accquire()
+		sem.Acquire()
 		go func() {
 			println(time.Now().Second())
 			time.Sleep(3 * time.Second)
