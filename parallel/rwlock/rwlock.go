@@ -60,7 +60,7 @@ func Example() {
 	count := 0
 
 	// 启动 3 个读者
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 100; i++ {
 		wg.Add(1)
 		go func(id int) {
 			defer wg.Done()
