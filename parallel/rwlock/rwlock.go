@@ -28,12 +28,10 @@ func NewRWLock() *RWLock {
 
 func (rwlock *RWLock) RLock() {
 	rwlock.writer <- struct{}{}
-	rwlock.mutex.Lock()
 	if rwlock.readers == 0 {
 		<-rwlock.noreader
 	}
 	rwlock.readers++
-	rwlock.mutex.Unlock()
 	<-rwlock.writer
 }
 
