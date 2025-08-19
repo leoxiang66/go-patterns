@@ -8,23 +8,36 @@ import (
 	"sync"
 )
 
-// List 是一个通用动态数组，模仿 Python list 与 JS Array 常用方法。
+// List 是一个通用的动态数组容器，模仿 Python 的 list 和 JavaScript 的 Array，支持常用的增删查改等操作。
 type List[T any] struct {
 	data []T
 }
 
 // ---------- 基础 ----------
 
+// New 创建一个空的 List。
 func New[T any]() *List[T] { return &List[T]{data: make([]T, 0)} }
+
+// From 根据给定切片创建一个新的 List。
 func From[T any](xs []T) *List[T] {
 	cp := make([]T, len(xs))
 	copy(cp, xs)
 	return &List[T]{data: cp}
 }
-func (l *List[T]) Len() int        { return len(l.data) }
-func (l *List[T]) Cap() int        { return cap(l.data) }
-func (l *List[T]) ToSlice() []T    { cp := make([]T, len(l.data)); copy(cp, l.data); return cp }
-func (l *List[T]) String() string  { return fmt.Sprintf("%v", l.data) }
+
+// Len 返回 List 的长度。
+func (l *List[T]) Len() int { return len(l.data) }
+
+// Cap 返回 List 的容量。
+func (l *List[T]) Cap() int { return cap(l.data) }
+
+// ToSlice 返回 List 的副本切片。
+func (l *List[T]) ToSlice() []T { cp := make([]T, len(l.data)); copy(cp, l.data); return cp }
+
+// String 返回 List 的字符串表示。
+func (l *List[T]) String() string { return fmt.Sprintf("%v", l.data) }
+
+// Clone 返回 List 的副本。
 func (l *List[T]) Clone() *List[T] { return From(l.data) } // Python: copy(), JS: slice()
 
 // ---------- 索引辅助（支持负索引/边界钳制） ----------
@@ -76,7 +89,7 @@ func normRange(length int, start, end *int) (s, e int) {
 
 // ---------- 读写/访问 ----------
 
-// Get / Set（越界会 panic，与 Python/JS 一致）
+// Get 获取指定索引的元素，支持负索引，越界会 panic。
 func (l *List[T]) Get(i int) T {
 	ii := normIndex(l.Len(), i)
 	if ii < 0 {
@@ -84,6 +97,8 @@ func (l *List[T]) Get(i int) T {
 	}
 	return l.data[ii]
 }
+
+// Set 设置指定索引的元素，支持负索引，越界会 panic。
 func (l *List[T]) Set(i int, v T) {
 	ii := normIndex(l.Len(), i)
 	if ii < 0 {
@@ -92,7 +107,7 @@ func (l *List[T]) Set(i int, v T) {
 	l.data[ii] = v
 }
 
-// At：JS 的 at()，支持负索引。越界返回第二个值 false
+// At 获取指定索引的元素，支持负索引，越界返回 false。
 func (l *List[T]) At(i int) (T, bool) {
 	ii := normIndex(l.Len(), i)
 	if ii < 0 {
@@ -102,7 +117,7 @@ func (l *List[T]) At(i int) (T, bool) {
 	return l.data[ii], true
 }
 
-// With：JS 的 with()，返回修改某索引后的新副本
+// With 返回修改某索引后的新 List 副本，原 List 不变。
 func (l *List[T]) With(i int, v T) *List[T] {
 	ii := normIndex(l.Len(), i)
 	if ii < 0 {
@@ -115,16 +130,21 @@ func (l *List[T]) With(i int, v T) *List[T] {
 
 // ---------- 增删改（Python: append/extend/insert/remove/pop/clear；JS: push/pop/unshift/shift/splice/copyWithin/fill） ----------
 
-func (l *List[T]) Append(items ...T) { // Python: append / JS: push
+// Append 在 List 末尾添加元素。
+func (l *List[T]) Append(items ...T) {
 	l.data = append(l.data, items...)
 }
-func (l *List[T]) Push(items ...T) { l.Append(items...) } // alias
 
-func (l *List[T]) Extend(xs []T) { // Python: extend
+// Push 是 Append 的别名。
+func (l *List[T]) Push(items ...T) { l.Append(items...) }
+
+// Extend 扩展 List，添加切片中的所有元素。
+func (l *List[T]) Extend(xs []T) {
 	l.data = append(l.data, xs...)
 }
 
-func (l *List[T]) Unshift(items ...T) { // JS: unshift
+// Unshift 在 List 前端插入元素。
+func (l *List[T]) Unshift(items ...T) {
 	if len(items) == 0 {
 		return
 	}
@@ -135,7 +155,8 @@ func (l *List[T]) Unshift(items ...T) { // JS: unshift
 	}
 }
 
-func (l *List[T]) Shift() (T, bool) { // JS: shift
+// Shift 移除并返回第一个元素。
+func (l *List[T]) Shift() (T, bool) {
 	if l.Len() == 0 {
 		var zero T
 		return zero, false
@@ -146,7 +167,8 @@ func (l *List[T]) Shift() (T, bool) { // JS: shift
 	return v, true
 }
 
-func (l *List[T]) Pop() (T, bool) { // Python: pop() / JS: pop()
+// Pop 移除并返回最后一个元素。
+func (l *List[T]) Pop() (T, bool) {
 	if l.Len() == 0 {
 		var zero T
 		return zero, false
@@ -156,7 +178,8 @@ func (l *List[T]) Pop() (T, bool) { // Python: pop() / JS: pop()
 	return last, true
 }
 
-func (l *List[T]) Insert(i int, v T) { // Python: insert(i, x)
+// Insert 在指定位置插入元素，支持负索引。
+func (l *List[T]) Insert(i int, v T) {
 	// Insert 前位置，支持负索引（-1 表示末尾前，即与 Python 行为一致）
 	if i < 0 {
 		i = l.Len() + i
@@ -172,7 +195,8 @@ func (l *List[T]) Insert(i int, v T) { // Python: insert(i, x)
 	l.data[i] = v
 }
 
-func (l *List[T]) RemoveFirst(value T, eq func(a, b T) bool) bool { // Python: remove(x)
+// RemoveFirst 移除第一个等于 value 的元素，eq 为比较器。
+func (l *List[T]) RemoveFirst(value T, eq func(a, b T) bool) bool {
 	for i, x := range l.data {
 		if eq(x, value) {
 			copy(l.data[i:], l.data[i+1:])
@@ -183,6 +207,7 @@ func (l *List[T]) RemoveFirst(value T, eq func(a, b T) bool) bool { // Python: r
 	return false
 }
 
+// RemoveAt 移除指定索引的元素，返回被移除的值和是否成功。
 func (l *List[T]) RemoveAt(i int) (T, bool) {
 	ii := normIndex(l.Len(), i)
 	if ii < 0 {
@@ -195,12 +220,12 @@ func (l *List[T]) RemoveAt(i int) (T, bool) {
 	return v, true
 }
 
-func (l *List[T]) Clear() { // Python: clear()
+// Clear 清空 List。
+func (l *List[T]) Clear() {
 	l.data = l.data[:0]
 }
 
-// Splice：JS 的 splice(start, deleteCount, ...items)
-// 返回被删除的元素列表，并在当前 List 上做就地修改
+// Splice 删除并插入元素，返回被删除的元素列表，并在当前 List 上做就地修改。
 func (l *List[T]) Splice(start, deleteCount int, items ...T) *List[T] {
 	n := l.Len()
 	// 处理 start（允许超界，按 JS 规则钳制到 [0, n]）
@@ -233,7 +258,7 @@ func (l *List[T]) Splice(start, deleteCount int, items ...T) *List[T] {
 	return From(removed)
 }
 
-// CopyWithin：JS 的 copyWithin(target, start, end?)
+// CopyWithin 将指定区间的元素复制到目标位置。
 func (l *List[T]) CopyWithin(target int, start int, endOpt ...int) {
 	n := l.Len()
 	end := n
@@ -273,7 +298,7 @@ func (l *List[T]) CopyWithin(target int, start int, endOpt ...int) {
 	}
 }
 
-// Fill：JS 的 fill(value, start?, end?)
+// Fill 用指定值填充区间元素。
 func (l *List[T]) Fill(value T, startEnd ...int) {
 	var start, end *int
 	if len(startEnd) >= 1 {
@@ -290,7 +315,7 @@ func (l *List[T]) Fill(value T, startEnd ...int) {
 
 // ---------- 查询/搜索（includes/index/count/find/findIndex 等） ----------
 
-// Includes：JS includes(value)，需要 eq 比较器
+// Includes 判断 List 是否包含指定元素，eq 为比较器。
 func (l *List[T]) Includes(value T, eq func(a, b T) bool) bool {
 	for _, x := range l.data {
 		if eq(x, value) {
@@ -300,7 +325,7 @@ func (l *List[T]) Includes(value T, eq func(a, b T) bool) bool {
 	return false
 }
 
-// IndexOf / LastIndexOf（JS 行为）
+// IndexOf 返回第一个等于 value 的索引，未找到返回 -1。
 func (l *List[T]) IndexOf(value T, eq func(a, b T) bool) int {
 	for i, x := range l.data {
 		if eq(x, value) {
@@ -309,6 +334,8 @@ func (l *List[T]) IndexOf(value T, eq func(a, b T) bool) int {
 	}
 	return -1
 }
+
+// LastIndexOf 返回最后一个等于 value 的索引，未找到返回 -1。
 func (l *List[T]) LastIndexOf(value T, eq func(a, b T) bool) int {
 	for i := len(l.data) - 1; i >= 0; i-- {
 		if eq(l.data[i], value) {
@@ -318,7 +345,7 @@ func (l *List[T]) LastIndexOf(value T, eq func(a, b T) bool) int {
 	return -1
 }
 
-// Count：Python count(x)
+// Count 返回等于 value 的元素个数。
 func (l *List[T]) Count(value T, eq func(a, b T) bool) int {
 	c := 0
 	for _, x := range l.data {
@@ -329,7 +356,7 @@ func (l *List[T]) Count(value T, eq func(a, b T) bool) int {
 	return c
 }
 
-// Find / FindIndex / FindLast / FindLastIndex（JS 行为）
+// Find 返回第一个满足条件的元素。
 func (l *List[T]) Find(pred func(v T, i int) bool) (T, bool) {
 	for i, x := range l.data {
 		if pred(x, i) {
@@ -339,6 +366,8 @@ func (l *List[T]) Find(pred func(v T, i int) bool) (T, bool) {
 	var zero T
 	return zero, false
 }
+
+// FindIndex 返回第一个满足条件的元素索引。
 func (l *List[T]) FindIndex(pred func(v T, i int) bool) int {
 	for i, x := range l.data {
 		if pred(x, i) {
@@ -347,6 +376,8 @@ func (l *List[T]) FindIndex(pred func(v T, i int) bool) int {
 	}
 	return -1
 }
+
+// FindLast 返回最后一个满足条件的元素。
 func (l *List[T]) FindLast(pred func(v T, i int) bool) (T, bool) {
 	for i := len(l.data) - 1; i >= 0; i-- {
 		if pred(l.data[i], i) {
@@ -356,6 +387,8 @@ func (l *List[T]) FindLast(pred func(v T, i int) bool) (T, bool) {
 	var zero T
 	return zero, false
 }
+
+// FindLastIndex 返回最后一个满足条件的元素索引。
 func (l *List[T]) FindLastIndex(pred func(v T, i int) bool) int {
 	for i := len(l.data) - 1; i >= 0; i-- {
 		if pred(l.data[i], i) {
@@ -367,13 +400,14 @@ func (l *List[T]) FindLastIndex(pred func(v T, i int) bool) int {
 
 // ---------- 遍历/变换（forEach/map/filter/reduce/some/every 等） ----------
 
-// ForEach: read only iterations
+// ForEach 只读遍历 List。
 func (l *List[T]) ForEach(fn func(v T, i int)) {
 	for i := 0; i < len(l.data); i++ {
 		fn(l.data[i], i)
 	}
 }
 
+// ForEachAsync 并发只读遍历 List，支持最大 goroutine 数。
 func (l *List[T]) ForEachAsync(
 	ctx context.Context,
 	maxGoroutines int,
@@ -410,7 +444,7 @@ func (l *List[T]) ForEachAsync(
 	return nil
 }
 
-// T -> R, return new
+// Map 返回一个新的 List，元素为 fn 映射结果。
 func Map[T any, R any](l *List[T], fn func(v T, i int) R) *List[R] {
 	out := make([]R, l.Len())
 	for i := 0; i < len(l.data); i++ {
@@ -420,6 +454,7 @@ func Map[T any, R any](l *List[T], fn func(v T, i int) R) *List[R] {
 }
 
 // T -> any, return new
+// Map 返回一个新的 List，元素为 fn 映射结果（类型为 any）。
 func (l *List[T]) Map(fn func(v T, i int) any) *List[any] {
 	out := make([]any, l.Len())
 	for i := 0; i < len(l.data); i++ {
@@ -429,12 +464,14 @@ func (l *List[T]) Map(fn func(v T, i int) any) *List[any] {
 }
 
 // T -> T, in place
+// MapInPlace 原地映射 List 元素。
 func (l *List[T]) MapInPlace(fn func(v T, i int) T) {
 	for i := 0; i < len(l.data); i++ {
 		l.data[i] = fn(l.data[i], i)
 	}
 }
 
+// MapAsync 并发映射 List，返回新 List。
 func MapAsync[T any, R any](
 	ctx context.Context,
 	l *List[T],
@@ -473,6 +510,7 @@ func MapAsync[T any, R any](
 	return From(out), nil
 }
 
+// Filter 返回所有满足条件的元素组成的新 List。
 func (l *List[T]) Filter(pred func(v T, i int) bool) *List[T] {
 	out := make([]T, 0, l.Len())
 	for i, x := range l.data {
@@ -483,6 +521,7 @@ func (l *List[T]) Filter(pred func(v T, i int) bool) *List[T] {
 	return From(out)
 }
 
+// Reduce 按照 fn 规则聚合 List 元素。
 func Reduce[T any, R any](l *List[T], init R, fn func(acc R, v T, i int) R) R {
 	acc := init
 	for i, x := range l.data {
@@ -491,6 +530,7 @@ func Reduce[T any, R any](l *List[T], init R, fn func(acc R, v T, i int) R) R {
 	return acc
 }
 
+// Some 判断是否存在满足条件的元素。
 func (l *List[T]) Some(pred func(v T, i int) bool) bool {
 	for i, x := range l.data {
 		if pred(x, i) {
@@ -499,6 +539,8 @@ func (l *List[T]) Some(pred func(v T, i int) bool) bool {
 	}
 	return false
 }
+
+// Every 判断所有元素是否都满足条件。
 func (l *List[T]) Every(pred func(v T, i int) bool) bool {
 	for i, x := range l.data {
 		if !pred(x, i) {
@@ -510,7 +552,7 @@ func (l *List[T]) Every(pred func(v T, i int) bool) bool {
 
 // ---------- 切片/排序/反转（slice/sort/reverse 以及不可变版本） ----------
 
-// Slice：JS slice(start?, end?)（不修改原 List）
+// Slice 返回指定区间的新 List，不修改原 List。
 func (l *List[T]) Slice(startEnd ...int) *List[T] {
 	var start, end *int
 	if len(startEnd) >= 1 {
@@ -523,12 +565,14 @@ func (l *List[T]) Slice(startEnd ...int) *List[T] {
 	return From(l.data[s:e])
 }
 
-// Reverse（就地）/ ToReversed（返回新副本）
+// Reverse 原地反转 List。
 func (l *List[T]) Reverse() {
 	for i, j := 0, len(l.data)-1; i < j; i, j = i+1, j-1 {
 		l.data[i], l.data[j] = l.data[j], l.data[i]
 	}
 }
+
+// ToReversed 返回反转后的新 List。
 func (l *List[T]) ToReversed() *List[T] {
 	cp := l.ToSlice()
 	for i, j := 0, len(cp)-1; i < j; i, j = i+1, j-1 {
@@ -537,7 +581,7 @@ func (l *List[T]) ToReversed() *List[T] {
 	return From(cp)
 }
 
-// Sort（就地）/ ToSorted（返回新副本）
+// Sort 使用插入排序原地排序 List。
 func (l *List[T]) Sort(less func(a, b T) bool) {
 	// 简单实现插入排序（小规模够用；需要高性能可改成 sort.SliceStable）
 	n := len(l.data)
@@ -549,6 +593,8 @@ func (l *List[T]) Sort(less func(a, b T) bool) {
 		}
 	}
 }
+
+// ToSorted 返回排序后的新 List。
 func (l *List[T]) ToSorted(less func(a, b T) bool) *List[T] {
 	cp := l.ToSlice()
 	tmp := &List[T]{data: cp}
@@ -556,14 +602,14 @@ func (l *List[T]) ToSorted(less func(a, b T) bool) *List[T] {
 	return tmp
 }
 
-// ToSpliced：JS 的 toSpliced（返回新副本，不改原 List）
+// ToSpliced 返回执行 splice 后的新 List，原 List 不变。
 func (l *List[T]) ToSpliced(start, deleteCount int, items ...T) *List[T] {
 	cp := l.Clone()
 	cp.Splice(start, deleteCount, items...)
 	return cp
 }
 
-// Join：JS join / Python join（需要 toStr 转换）
+// Join 用分隔符连接 List 元素，toStr 为元素转字符串函数。
 func (l *List[T]) Join(sep string, toStr func(v T) string) string {
 	if l.Len() == 0 {
 		return ""

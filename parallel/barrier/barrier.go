@@ -24,10 +24,6 @@ func (barrier *Barrier) Sync() {
 	}
 }
 
-func (barrier *Barrier) Add() {
-	barrier.num_workers++
-}
-
 func Example() {
 	barrier := NewBarrier(5)
 	for i := 0; i < 5; i++ {
