@@ -24,14 +24,17 @@ func (barrier *Barrier) Sync() {
 	}
 }
 
+func (barrier *Barrier) Add() {
+	barrier.num_workers++
+}
 
-func Example()  {
+func Example() {
 	barrier := NewBarrier(5)
 	for i := 0; i < 5; i++ {
 		go func(i int) {
-			println("goroutine ",i, " starts!")
-			time.Sleep(time.Duration((i+1)*3)*time.Second)
-			println("goroutine ",i, " finishes!")
+			println("goroutine ", i, " starts!")
+			time.Sleep(time.Duration((i+1)*3) * time.Second)
+			println("goroutine ", i, " finishes!")
 			barrier.Done()
 		}(i)
 	}
