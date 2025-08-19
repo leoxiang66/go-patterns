@@ -42,4 +42,10 @@ func main() {
 	})
 
 	fmt.Println(err)
+
+	l3 := l1.Map(func(v, i int) any {
+		return v
+	})
+
+	fmt.Println(l3.ToSlice()...)
 }

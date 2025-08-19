@@ -377,7 +377,7 @@ func (l *List[T]) ForEach(fn func(v T, i int)) {
 func (l *List[T]) ForEachAsync(
 	ctx context.Context,
 	maxGoroutines int,
-	fn func(v T, i int), 
+	fn func(v T, i int),
 ) error {
 	if maxGoroutines <= 0 {
 		maxGoroutines = runtime.GOMAXPROCS(0)
@@ -410,8 +410,7 @@ func (l *List[T]) ForEachAsync(
 	return nil
 }
 
-
-
+// T -> R, return new
 func Map[T any, R any](l *List[T], fn func(v T, i int) R) *List[R] {
 	out := make([]R, l.Len())
 	for i := 0; i < len(l.data); i++ {
@@ -420,19 +419,58 @@ func Map[T any, R any](l *List[T], fn func(v T, i int) R) *List[R] {
 	return From(out)
 }
 
-// 仅变换为同类型（T -> T）
+// T -> any, return new
+func (l *List[T]) Map(fn func(v T, i int) any) *List[any] {
+	out := make([]any, l.Len())
+	for i := 0; i < len(l.data); i++ {
+		out[i] = fn(l.data[i], i)
+	}
+	return From(out)
+}
+
+// T -> T, in place
 func (l *List[T]) MapInPlace(fn func(v T, i int) T) {
 	for i := 0; i < len(l.data); i++ {
 		l.data[i] = fn(l.data[i], i)
 	}
 }
 
-func (l *List[T]) MapInPlaceAsync(fn func(v T, i int) T) {
-	for i := 0; i < len(l.data); i++ {
-		go func(i int) {
-			l.data[i] = fn(l.data[i], i)
-		}(i)
+func MapAsync[T any, R any](
+	ctx context.Context,
+	l *List[T],
+	maxGoroutines int,
+	fn func(v T, i int) R,
+) (*List[R], error) {
+	if maxGoroutines <= 0 {
+		maxGoroutines = runtime.GOMAXPROCS(0)
 	}
+	sem := make(chan struct{}, maxGoroutines)
+	var wg sync.WaitGroup
+
+	out := make([]R, len(l.data))
+
+	for i := 0; i < len(l.data); i++ {
+		select {
+		case <-ctx.Done():
+			wg.Wait()
+			return nil, ctx.Err()
+		case sem <- struct{}{}:
+		}
+
+		v := l.data[i]
+		idx := i
+		wg.Add(1)
+		go func(v T, i int) {
+			defer func() {
+				<-sem
+				wg.Done()
+			}()
+			out[i] = fn(v, i)
+		}(v, idx)
+	}
+
+	wg.Wait()
+	return From(out), nil
 }
 
 func (l *List[T]) Filter(pred func(v T, i int) bool) *List[T] {
