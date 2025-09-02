@@ -26,6 +26,15 @@ func (sem *Semaphore) Acquire() {
 	sem.container <- struct{}{}
 }
 
+func (sem *Semaphore) TryAcquire() bool {
+	select {
+	case sem.container <- struct{}{}:
+		return true
+	default:
+		return false
+	}
+}
+
 // Release 释放信号量。
 // 调用此方法会释放一个信号量容量，允许其他 goroutine 获取。
 func (sem *Semaphore) Release() {
