@@ -3,18 +3,16 @@ package rwlock
 import (
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
-
-	"github.com/leoxiang66/go-patterns/parallel/mutex"
 )
 
-// RWLock 是一个读写锁，允许多个读者同时访问，但写者需要独占访问。
+// RWLock 是一个写优先的写锁，允许多个读者同时访问，但写者需要独占访问。
 // 它通过通道和互斥锁实现，支持高效的读写操作。
 type RWLock struct {
 	readers  int32         // 当前活跃的读者数量
 	noreader chan struct{} // 用于指示是否有读者的通道
 	writer   chan struct{} // 用于控制写者访问的通道
-	mutex    *mutex.Mutex  // 用于保护 readers 计数的互斥锁
 }
 
 // NewRWLock 创建一个新的 RWLock。
@@ -26,7 +24,6 @@ func NewRWLock() *RWLock {
 	return &RWLock{
 		writer:   sem,
 		noreader: noreader,
-		mutex:    mutex.NewMutex(),
 	}
 }
 
@@ -34,22 +31,21 @@ func NewRWLock() *RWLock {
 // 如果当前有写者正在访问，调用此方法的 goroutine 会阻塞。
 func (rwlock *RWLock) RLock() {
 	rwlock.writer <- struct{}{}
-	if rwlock.readers == 0 {
-		<-rwlock.noreader
+	if atomic.LoadInt32(&rwlock.readers) == 0 {
+		<-rwlock.noreader // 第一个读者抢走 noreader token
 	}
-	rwlock.readers++
+	atomic.AddInt32(&rwlock.readers, 1)
 	<-rwlock.writer
 }
 
 // RUnlock 释放读锁。
 // 如果这是最后一个读者，会通知等待的写者。
 func (rwlock *RWLock) RUnlock() {
-	rwlock.mutex.Lock()
-	rwlock.readers--
-	if rwlock.readers == 0 {
+	n := atomic.AddInt32(&rwlock.readers, -1)
+	if n == 0 {
 		rwlock.noreader <- struct{}{}
 	}
-	rwlock.mutex.Unlock()
+	
 }
 
 // WLock 获取写锁。

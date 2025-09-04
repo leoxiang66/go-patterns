@@ -6,3 +6,4 @@ type MessageInterface[T any] interface {
 	SetTime(time int)
 	GetTime() int
 }
+ 
