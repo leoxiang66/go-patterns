@@ -29,6 +29,8 @@ func RetryWork(work func() error, retryTimes int) {
 			return // 成功，退出重试
 		}
 
+		LogMessage(fmt.Sprintf("业务逻辑出现error/panic: %s", err.Error()))
+
 		// 失败处理
 		if attempt < totalAttempts-1 {
 			LogMessage(fmt.Sprintf("尝试 %d 失败: %v，将重试...", attempt+1, err))
