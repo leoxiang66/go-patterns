@@ -17,13 +17,11 @@ func NewBroadcast[X any](q <-chan struct{}, in <-chan X) *Broadcast[X] {
 		in:          in,
 		quit:        q,
 	}
-	// 启动广播goroutine
-	go b.run()
 	return b
 }
 
 // Subscribe 订阅广播（返回一个接收广播消息的通道）
-func (b *Broadcast[X]) Subscribe() chan X {
+func (b *Broadcast[X]) Subscribe() <-chan X {
 	ch := make(chan X)
 	b.mu.Lock()
 	b.subscribers = append(b.subscribers, ch)
@@ -31,8 +29,8 @@ func (b *Broadcast[X]) Subscribe() chan X {
 	return ch
 }
 
-// run 核心广播逻辑：从输入通道读消息，发送到所有订阅者
-func (b *Broadcast[X]) run() {
+// Run 核心广播逻辑：从输入通道读消息，发送到所有订阅者
+func (b *Broadcast[X]) Run() {
 	for {
 		select {
 		case <-b.quit: // 响应终止信号，关闭所有订阅者通道
