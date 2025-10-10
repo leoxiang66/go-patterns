@@ -102,3 +102,11 @@ func (pq *PriorityQueue[T]) binarySearch(item T) int {
 	}
 	return low
 }
+
+func (pq *PriorityQueue[T]) Peek() (T, error) {
+    var zero T
+    if len(pq.data) == 0 {
+        return zero, errors.New("queue is empty")
+    }
+    return pq.data[0], nil
+}
